@@ -19,20 +19,7 @@ const pool = new Pool({
 app.get("/health", (req, res) => res.json({ ok: true }));
 
 // Demo: crear tabla
-app.get("/init", async (req, res) => {
-  try {
-    await pool.query(`
-      CREATE TABLE IF NOT EXISTS users (
-        id SERIAL PRIMARY KEY,
-        name TEXT NOT NULL
-      )
-    `);
-    res.json({ ok: true, msg: "Tabla users lista" });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ ok: false, error: "Error creando tabla" });
-  }
-});
+
 
 // CRUD simple
 app.get("/users", async (req, res) => {
