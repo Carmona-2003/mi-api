@@ -1,0 +1,199 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+/**
+ * =========================
+ * ENUMS
+ * =========================
+ */
+enum EstadoGeneral {
+  ACTIVO
+  INACTIVO
+}
+
+enum EstadoOrden {
+  PENDIENTE
+  EN_PROCESO
+  TERMINADA
+  CANCELADA
+}
+
+/**
+ * =========================
+ * SEGURIDAD
+ * =========================
+ */
+model Rol {
+  idRol  Int           @id @default(autoincrement()) @map("id_rol")
+  nombre String        @map("nombre")
+  estado EstadoGeneral @map("estado")
+
+  usuarios Usuario[]
+  permisos Permiso[]
+  detalles DetalleRol[]
+
+  @@map("roles")
+}
+
+model Permiso {
+  idPermiso   Int    @id @default(autoincrement()) @map("id_permiso")
+  descripcion String @map("descripcion")
+  idRol       Int    @map("id_rol")
+
+  rol      Rol          @relation(fields: [idRol], references: [idRol])
+  detalles DetalleRol[]
+
+  @@index([idRol])
+  @@map("permisos")
+}
+
+model Usuario {
+  idUsuario  Int           @id @default(autoincrement()) @map("id_usuario")
+  nombre     String        @map("nombre")
+  correo     String        @unique @map("correo")
+  contrasena String        @map("contrasena")
+  estado     EstadoGeneral @map("estado")
+  idRol      Int           @map("id_rol")
+
+  rol Rol @relation(fields: [idRol], references: [idRol])
+
+  resetCodigo String?   @map("reset_codigo")
+  resetExpira DateTime? @map("reset_expira")
+
+  @@index([idRol])
+  @@map("usuarios")
+}
+
+model DetalleRol {
+  idDetalle Int @id @default(autoincrement()) @map("id_detalle")
+  idRol     Int @map("id_rol")
+  idPermiso Int @map("id_permiso")
+
+  rol     Rol     @relation(fields: [idRol], references: [idRol])
+  permiso Permiso @relation(fields: [idPermiso], references: [idPermiso])
+
+  @@index([idRol])
+  @@index([idPermiso])
+  @@map("detalle_roles")
+}
+
+/**
+ * =========================
+ * PRODUCCIÓN
+ * =========================
+ */
+model Cliente {
+  idCliente Int     @id @default(autoincrement()) @map("id_cliente")
+  nombre    String  @map("nombre")
+  telefono  Int?    @map("telefono")
+  correo    String? @map("correo")
+  pagina    String? @map("pagina")
+
+  ordenes OrdenProduccion[]
+
+  @@map("clientes")
+}
+
+model OrdenProduccion {
+  idOrden       Int         @id @default(autoincrement()) @map("id_orden")
+  fechaCreacion DateTime    @default(now()) @map("fecha_creacion")
+  estado        EstadoOrden @map("estado")
+  idCliente     Int         @map("id_cliente")
+
+  cliente    Cliente        @relation(fields: [idCliente], references: [idCliente])
+  detalles   DetalleOrden[]
+  desempenos Desempeno[]
+
+  @@index([idCliente])
+  @@map("orden_produccion")
+}
+
+model Referencia {
+  idReferencia Int    @id @default(autoincrement()) @map("id_referencia")
+  nombre       String @map("nombre")
+  descripcion  String @map("descripcion")
+  url          String @map("url")
+
+  detalles    DetalleOrden[]
+  operaciones Operacion[]
+
+  @@map("referencias")
+}
+
+model DetalleOrden {
+  idDetalle    Int @id @default(autoincrement()) @map("id_detalle")
+  idOrden      Int @map("id_orden")
+  idReferencia Int @map("id_referencia")
+  cantidad     Int @map("cantidad")
+
+  orden      OrdenProduccion @relation(fields: [idOrden], references: [idOrden])
+  referencia Referencia      @relation(fields: [idReferencia], references: [idReferencia])
+  avances    Avance[]
+
+  @@index([idOrden])
+  @@index([idReferencia])
+  @@map("detalle_orden")
+}
+
+model Maquina {
+  idMaquina Int           @id @default(autoincrement()) @map("id_maquina")
+  nombre    String        @map("nombre")
+  tipo      String        @map("tipo")
+  estado    EstadoGeneral @map("estado")
+
+  operaciones Operacion[]
+
+  @@map("maquinas")
+}
+
+model Operacion {
+  idOperacion      Int           @id @default(autoincrement()) @map("id_operacion")
+  nombre           String        @map("nombre")
+  estado           EstadoGeneral @map("estado")
+  idReferencia     Int           @map("id_referencia")
+  idMaquina        Int           @map("id_maquina")
+  cantidadEstimada Int           @map("cantidad_estimada")
+
+  referencia Referencia @relation(fields: [idReferencia], references: [idReferencia])
+  maquina    Maquina    @relation(fields: [idMaquina], references: [idMaquina])
+  avances    Avance[]
+
+  @@index([idReferencia])
+  @@index([idMaquina])
+  @@map("operaciones")
+}
+
+model Avance {
+  idAvance    Int           @id @default(autoincrement()) @map("id_avance")
+  descripcion String        @map("descripcion")
+  fecha       DateTime      @default(now()) @map("fecha")
+  estado      EstadoGeneral @map("estado")
+  idDetalle   Int           @map("id_detalle")
+  idOperacion Int           @map("id_operacion")
+
+  detalle   DetalleOrden @relation(fields: [idDetalle], references: [idDetalle])
+  operacion Operacion    @relation(fields: [idOperacion], references: [idOperacion])
+
+  @@index([idDetalle])
+  @@index([idOperacion])
+  @@map("avances")
+}
+
+model Desempeno {
+  idDesempeno       Int      @id @default(autoincrement()) @map("id_desempeno")
+  cantidadProducida Int      @map("cantidad_producida")
+  productividad     Float    @map("productividad")
+  fecha             DateTime @default(now()) @map("fecha")
+  idOrden           Int      @map("id_orden")
+
+  orden OrdenProduccion @relation(fields: [idOrden], references: [idOrden])
+
+  @@index([idOrden])
+  @@map("desempenos")
+}

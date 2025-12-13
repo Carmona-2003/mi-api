@@ -2,6 +2,21 @@ const express = require("express");
 const cors = require("cors");
 const dotenv = require("dotenv");
 const { Pool } = require("pg");
+const prisma = require("./prismaClient");
+
+app.get("/roles", async (req, res) => {
+  const roles = await prisma.rol.findMany(); // si tu modelo se llama Rol
+  res.json(roles);
+});
+
+app.post("/roles", async (req, res) => {
+  const { nombre, estado } = req.body; // estado: "ACTIVO" o "INACTIVO"
+  const rol = await prisma.rol.create({
+    data: { nombre, estado }
+  });
+  res.json(rol);
+});
+
 
 dotenv.config();
 
