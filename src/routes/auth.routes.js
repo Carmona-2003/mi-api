@@ -4,17 +4,18 @@ const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const transporter = require("../utils/mailer");
 
-// (Opcional) middleware para validar token si quieres /me
-const auth = require("../middlewares/auth"); // si no lo tienes, borra /me y este require
-
-
+// ✅ asegúrate que existe: src/middlewares/auth.middleware.js
+const auth = require("../middlewares/auth.middleware");
 
 // =====================
 // POST /api/auth/login
 // =====================
 router.post("/login", async (req, res) => {
   try {
-    const { correo, contrasena } = req.body;
+    let { correo, contrasena } = req.body;
+
+    correo = String(correo || "").trim().toLowerCase();
+    contrasena = String(contrasena || "");
 
     if (!correo || !contrasena) {
       return res.status(400).json({ error: "correo y contrasena son requeridos" });
@@ -36,7 +37,7 @@ router.post("/login", async (req, res) => {
       { expiresIn: "8h" }
     );
 
-    res.json({
+    return res.json({
       token,
       usuario: {
         id: usuario.id_usuario,
@@ -47,7 +48,7 @@ router.post("/login", async (req, res) => {
     });
   } catch (e) {
     console.error("LOGIN ERROR:", e);
-    res.status(500).json({ error: "Error interno" });
+    return res.status(500).json({ error: "Error interno" });
   }
 });
 
@@ -57,22 +58,18 @@ router.post("/login", async (req, res) => {
 // ==================================
 router.post("/forgot-password", async (req, res) => {
   try {
-    const { correo } = req.body;
+    let { correo } = req.body;
+    correo = String(correo || "").trim().toLowerCase();
 
-    if (!correo) {
-      return res.status(400).json({ error: "correo es requerido" });
-    }
+    if (!correo) return res.status(400).json({ error: "correo es requerido" });
 
     const usuario = await prisma.usuarios.findUnique({ where: { correo } });
 
-    // No revelar si existe o no (seguridad)
-    if (!usuario) {
-      return res.json({ message: "Si el correo existe, se enviará un código" });
-    }
+    // No revelar si existe o no
+    if (!usuario) return res.json({ message: "Si el correo existe, se enviará un código" });
 
-    // Código de 6 dígitos
     const codigo = Math.floor(100000 + Math.random() * 900000).toString();
-    const expira = new Date(Date.now() + 15 * 60 * 1000); // 15 min
+    const expira = new Date(Date.now() + 15 * 60 * 1000);
 
     await prisma.usuarios.update({
       where: { id_usuario: usuario.id_usuario },
@@ -80,7 +77,7 @@ router.post("/forgot-password", async (req, res) => {
     });
 
     await transporter.sendMail({
-      from: process.env.MAIL_USER, // ✅ importante
+      from: `JIRESOFT <${process.env.MAIL_USER}>`,
       to: correo,
       subject: "Recuperación de contraseña",
       html: `
@@ -93,7 +90,6 @@ router.post("/forgot-password", async (req, res) => {
     return res.json({ message: "Si el correo existe, se enviará un código" });
   } catch (e) {
     console.error("FORGOT ERROR:", e);
-    // igual no revelamos demasiado
     return res.json({ message: "Si el correo existe, se enviará un código" });
   }
 });
@@ -104,15 +100,17 @@ router.post("/forgot-password", async (req, res) => {
 // ==================================
 router.post("/reset-password", async (req, res) => {
   try {
-    const { correo, codigo, nuevaContrasena } = req.body;
+    let { correo, codigo, nuevaContrasena } = req.body;
+
+    correo = String(correo || "").trim().toLowerCase();
+    codigo = String(codigo || "").trim();
+    nuevaContrasena = String(nuevaContrasena || "");
 
     if (!correo || !codigo || !nuevaContrasena) {
-      return res.status(400).json({
-        error: "correo, codigo y nuevaContrasena son requeridos",
-      });
+      return res.status(400).json({ error: "correo, codigo y nuevaContrasena son requeridos" });
     }
 
-    if (String(nuevaContrasena).length < 6) {
+    if (nuevaContrasena.length < 6) {
       return res.status(400).json({ error: "La contraseña debe tener mínimo 6 caracteres" });
     }
 
@@ -120,7 +118,7 @@ router.post("/reset-password", async (req, res) => {
 
     if (
       !usuario ||
-      usuario.reset_codigo !== String(codigo) ||
+      usuario.reset_codigo !== codigo ||
       !usuario.reset_expira ||
       usuario.reset_expira < new Date()
     ) {
@@ -141,7 +139,7 @@ router.post("/reset-password", async (req, res) => {
     return res.json({ message: "Contraseña actualizada correctamente" });
   } catch (e) {
     console.error("RESET ERROR:", e);
-    res.status(500).json({ error: "Error interno" });
+    return res.status(500).json({ error: "Error interno" });
   }
 });
 
@@ -155,9 +153,12 @@ router.get("/me", auth, async (req, res) => {
       where: { id_usuario: userId },
       select: { id_usuario: true, nombre: true, correo: true, id_rol: true, estado: true },
     });
-    res.json(usuario);
+
+    if (!usuario) return res.status(404).json({ error: "Usuario no encontrado" });
+
+    return res.json(usuario);
   } catch (e) {
-    res.status(500).json({ error: "Error interno" });
+    return res.status(500).json({ error: "Error interno" });
   }
 });
 
