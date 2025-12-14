@@ -1,3 +1,6 @@
+const { PrismaClient } = require("@prisma/client");
+const prisma = new PrismaClient();
+
 const seguridad = {
   rol: require("../models/seguridad/rol.model"),
   permiso: require("../models/seguridad/permiso.model"),
@@ -20,25 +23,32 @@ const desempeno = {
   detalleDesempeno: require("../models/desempeno/detalle-desempeno.model"),
   reporteDesempeno: require("../models/desempeno/reporte-desempeno.model"),
   operaria: require("../models/desempeno/operaria.model"),
-  reporte: require("../models/desempeno/reporte.model"),
-
-
+  
 };
 
-const MODELS = {
-  ...seguridad,
-  ...produccion,
-  ...desempeno,
-};
+const MODELS = { ...seguridad, ...produccion, ...desempeno };
 
 module.exports = (name) => {
-  const model = MODELS[name];
+  const cfg = MODELS[name];
 
-  if (!model) {
+  if (!cfg) {
     throw new Error(
       `Modelo no encontrado: ${name}. Disponibles: ${Object.keys(MODELS).join(", ")}`
     );
   }
 
-  return model;
+  // cfg.model debe ser el delegate de Prisma, ejemplo: "roles", "usuarios", etc.
+  const delegate = prisma[cfg.model];
+
+  if (!delegate) {
+    throw new Error(
+      `Delegate Prisma no encontrado: prisma.${cfg.model}. Revisa el campo "model" en ${name}.model.js`
+    );
+  }
+
+  return {
+    delegate,
+    id: cfg.id,
+    include: cfg.include,
+  };
 };

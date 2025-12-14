@@ -1,7 +1,1 @@
-module.exports = (cliente) => ({
-  id: cliente.id_cliente,
-  nombre: cliente.nombre,
-  telefono: cliente.telefono,
-  correo: cliente.correo,
-  pagina: cliente.pagina,
-});
+module.exports = { model: "clientes", id: "id_cliente" };

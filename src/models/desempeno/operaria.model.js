@@ -1,5 +1,1 @@
-module.exports = (o) => ({
-  id: o.id_operaria,
-  nombre: o.nombre,
-  estado: o.estado,
-});
+module.exports = { model: "operarias", id: "id_operaria" };

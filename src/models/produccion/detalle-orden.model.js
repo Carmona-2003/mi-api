@@ -1,11 +1,1 @@
-module.exports = {
-  model: "verDetalleOrden",
-  id: "id_detalle",
-
-  include: {
-    orden: true,
-    referencia: true,
-    avances: true,
-    verDetalleDesempenos: true,
-  },
-};
+module.exports = { model: "verDetalleOrden", id: "id_detalle" };

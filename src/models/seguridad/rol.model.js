@@ -1,5 +1,1 @@
-module.exports = (rol) => ({
-  id: rol.id_rol,
-  nombre: rol.nombre,
-  estado: rol.estado,
-});
+module.exports = { model: "roles", id: "id_rol" };

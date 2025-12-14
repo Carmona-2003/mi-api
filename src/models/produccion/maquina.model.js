@@ -1,6 +1,1 @@
-module.exports = (m) => ({
-  id: m.id_maquina,
-  nombre: m.nombre,
-  tipo: m.tipo,
-  estado: m.estado,
-});
+module.exports = { model: "maquinas", id: "id_maquina" };
