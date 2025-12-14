@@ -7,193 +7,171 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-/**
- * =========================
- * ENUMS
- * =========================
- */
-enum EstadoGeneral {
-  ACTIVO
-  INACTIVO
+model Roles {
+  id_rol Int    @id @default(autoincrement())
+  nombre String
+  estado String
+
+  usuarios       Usuarios[] // ✅ relación inversa
+  permisos       Permisos[]
+  verDetalleRols VerDetalleRol[]
 }
 
-enum EstadoOrden {
-  PENDIENTE
-  EN_PROCESO
-  TERMINADA
-  CANCELADA
+model Permisos {
+  id_permiso  Int    @id @default(autoincrement())
+  descripcion String
+  id_rol      Int
+
+  rol            Roles           @relation(fields: [id_rol], references: [id_rol])
+  verDetalleRols VerDetalleRol[]
 }
 
-/**
- * =========================
- * SEGURIDAD
- * =========================
- */
-model Rol {
-  idRol  Int           @id @default(autoincrement()) @map("id_rol")
-  nombre String        @map("nombre")
-  estado EstadoGeneral @map("estado")
+model Usuarios {
+  id_usuario Int    @id @default(autoincrement())
+  nombre     String
+  correo     String @unique
+  contrasena String
+  estado     String
+  id_rol     Int
 
-  usuarios Usuario[]
-  permisos Permiso[]
-  detalles DetalleRol[]
+  rol Roles @relation(fields: [id_rol], references: [id_rol])
 
-  @@map("roles")
+  // 🔐 recuperación
+  reset_codigo String?
+  reset_expira DateTime?
 }
 
-model Permiso {
-  idPermiso   Int    @id @default(autoincrement()) @map("id_permiso")
-  descripcion String @map("descripcion")
-  idRol       Int    @map("id_rol")
+model VerDetalleRol {
+  id_detalle Int @id @default(autoincrement())
+  id_rol     Int
+  id_permiso Int
 
-  rol      Rol          @relation(fields: [idRol], references: [idRol])
-  detalles DetalleRol[]
-
-  @@index([idRol])
-  @@map("permisos")
+  rol     Roles    @relation(fields: [id_rol], references: [id_rol])
+  permiso Permisos @relation(fields: [id_permiso], references: [id_permiso])
 }
 
-model Usuario {
-  idUsuario  Int           @id @default(autoincrement()) @map("id_usuario")
-  nombre     String        @map("nombre")
-  correo     String        @unique @map("correo")
-  contrasena String        @map("contrasena")
-  estado     EstadoGeneral @map("estado")
-  idRol      Int           @map("id_rol")
-
-  rol Rol @relation(fields: [idRol], references: [idRol])
-
-  resetCodigo String?   @map("reset_codigo")
-  resetExpira DateTime? @map("reset_expira")
-
-  @@index([idRol])
-  @@map("usuarios")
-}
-
-model DetalleRol {
-  idDetalle Int @id @default(autoincrement()) @map("id_detalle")
-  idRol     Int @map("id_rol")
-  idPermiso Int @map("id_permiso")
-
-  rol     Rol     @relation(fields: [idRol], references: [idRol])
-  permiso Permiso @relation(fields: [idPermiso], references: [idPermiso])
-
-  @@index([idRol])
-  @@index([idPermiso])
-  @@map("detalle_roles")
-}
-
-/**
- * =========================
- * PRODUCCIÓN
- * =========================
- */
-model Cliente {
-  idCliente Int     @id @default(autoincrement()) @map("id_cliente")
-  nombre    String  @map("nombre")
-  telefono  Int?    @map("telefono")
-  correo    String? @map("correo")
-  pagina    String? @map("pagina")
-
-  ordenes OrdenProduccion[]
-
-  @@map("clientes")
+model Referencias {
+  id_referencia    Int               @id @default(autoincrement())
+  nombre           String
+  descripcion      String
+  url              String
+  verDetalleOrdens VerDetalleOrden[]
+  operaciones      Operaciones[]
 }
 
 model OrdenProduccion {
-  idOrden       Int         @id @default(autoincrement()) @map("id_orden")
-  fechaCreacion DateTime    @default(now()) @map("fecha_creacion")
-  estado        EstadoOrden @map("estado")
-  idCliente     Int         @map("id_cliente")
+  id_orden       Int      @id @default(autoincrement())
+  fecha_creacion DateTime @default(now())
+  estado         String
+  id_cliente     Int
 
-  cliente    Cliente        @relation(fields: [idCliente], references: [idCliente])
-  detalles   DetalleOrden[]
-  desempenos Desempeno[]
-
-  @@index([idCliente])
-  @@map("orden_produccion")
+  cliente          Clientes          @relation(fields: [id_cliente], references: [id_cliente])
+  verDetalleOrdens VerDetalleOrden[]
+  desempenos       Desempeno[]
 }
 
-model Referencia {
-  idReferencia Int    @id @default(autoincrement()) @map("id_referencia")
-  nombre       String @map("nombre")
-  descripcion  String @map("descripcion")
-  url          String @map("url")
+model Clientes {
+  id_cliente Int     @id @default(autoincrement())
+  nombre     String
+  telefono   Int?
+  correo     String?
+  pagina     String?
 
-  detalles    DetalleOrden[]
-  operaciones Operacion[]
-
-  @@map("referencias")
+  ordenes OrdenProduccion[]
 }
 
-model DetalleOrden {
-  idDetalle    Int @id @default(autoincrement()) @map("id_detalle")
-  idOrden      Int @map("id_orden")
-  idReferencia Int @map("id_referencia")
-  cantidad     Int @map("cantidad")
+model VerDetalleOrden {
+  id_detalle    Int @id @default(autoincrement())
+  id_orden      Int
+  id_referencia Int
+  Cantidad      Int
 
-  orden      OrdenProduccion @relation(fields: [idOrden], references: [idOrden])
-  referencia Referencia      @relation(fields: [idReferencia], references: [idReferencia])
-  avances    Avance[]
-
-  @@index([idOrden])
-  @@index([idReferencia])
-  @@map("detalle_orden")
+  orden                OrdenProduccion       @relation(fields: [id_orden], references: [id_orden])
+  referencia           Referencias           @relation(fields: [id_referencia], references: [id_referencia])
+  avances              Avances[]
+  verDetalleDesempenos VerDetalleDesempeno[]
 }
 
-model Maquina {
-  idMaquina Int           @id @default(autoincrement()) @map("id_maquina")
-  nombre    String        @map("nombre")
-  tipo      String        @map("tipo")
-  estado    EstadoGeneral @map("estado")
+model Maquinas {
+  id_maquina Int    @id @default(autoincrement())
+  nombre     String
+  tipo       String
+  estado     String
 
-  operaciones Operacion[]
-
-  @@map("maquinas")
+  operaciones Operaciones[]
 }
 
-model Operacion {
-  idOperacion      Int           @id @default(autoincrement()) @map("id_operacion")
-  nombre           String        @map("nombre")
-  estado           EstadoGeneral @map("estado")
-  idReferencia     Int           @map("id_referencia")
-  idMaquina        Int           @map("id_maquina")
-  cantidadEstimada Int           @map("cantidad_estimada")
+model Operaciones {
+  id_operacion      Int    @id @default(autoincrement())
+  nombre            String
+  estado            String
+  id_referencia     Int
+  id_maquina        Int
+  cantidad_estimada Int
 
-  referencia Referencia @relation(fields: [idReferencia], references: [idReferencia])
-  maquina    Maquina    @relation(fields: [idMaquina], references: [idMaquina])
-  avances    Avance[]
-
-  @@index([idReferencia])
-  @@index([idMaquina])
-  @@map("operaciones")
+  referencia           Referencias           @relation(fields: [id_referencia], references: [id_referencia])
+  maquina              Maquinas              @relation(fields: [id_maquina], references: [id_maquina])
+  avances              Avances[]
+  verDetalleDesempenos VerDetalleDesempeno[]
 }
 
-model Avance {
-  idAvance    Int           @id @default(autoincrement()) @map("id_avance")
-  descripcion String        @map("descripcion")
-  fecha       DateTime      @default(now()) @map("fecha")
-  estado      EstadoGeneral @map("estado")
-  idDetalle   Int           @map("id_detalle")
-  idOperacion Int           @map("id_operacion")
+model Avances {
+  id_avance    Int      @id @default(autoincrement())
+  descripcion  String
+  fecha        DateTime @default(now())
+  estado       String
+  id_detalle   Int
+  id_operacion Int
 
-  detalle   DetalleOrden @relation(fields: [idDetalle], references: [idDetalle])
-  operacion Operacion    @relation(fields: [idOperacion], references: [idOperacion])
+  detalle   VerDetalleOrden @relation(fields: [id_detalle], references: [id_detalle])
+  operacion Operaciones     @relation(fields: [id_operacion], references: [id_operacion])
+}
 
-  @@index([idDetalle])
-  @@index([idOperacion])
-  @@map("avances")
+model Operarias {
+  id_operaria Int    @id @default(autoincrement())
+  nombre      String
+  estado      String
+
+  detalles VerDetalleDesempeno[]
 }
 
 model Desempeno {
-  idDesempeno       Int      @id @default(autoincrement()) @map("id_desempeno")
-  cantidadProducida Int      @map("cantidad_producida")
-  productividad     Float    @map("productividad")
-  fecha             DateTime @default(now()) @map("fecha")
-  idOrden           Int      @map("id_orden")
+  id_desempeno      Int      @id @default(autoincrement())
+  Cantida_producida Int
+  productividad     Float
+  fecha             DateTime @default(now())
+  id_orden          Int
 
-  orden OrdenProduccion @relation(fields: [idOrden], references: [idOrden])
+  orden                OrdenProduccion       @relation(fields: [id_orden], references: [id_orden])
+  verDetalleDesempenos VerDetalleDesempeno[]
+  reportesDesempenos   ReportesDesempeno[]
+}
 
-  @@index([idOrden])
-  @@map("desempenos")
+model VerDetalleDesempeno {
+  id_detalle       Int     @id @default(autoincrement())
+  id_desempeno     Int
+  id_operaria      Int
+  id_operacion     Int
+  Cantidad         Int
+  Eficiencia       Boolean
+  Porcentaje       Float
+  id_detalle_orden Int?
+
+  desempeno          Desempeno           @relation(fields: [id_desempeno], references: [id_desempeno])
+  operaria           Operarias           @relation(fields: [id_operaria], references: [id_operaria])
+  operacion          Operaciones         @relation(fields: [id_operacion], references: [id_operacion])
+  detalle            VerDetalleOrden?    @relation(fields: [id_detalle_orden], references: [id_detalle])
+  reportesDesempenos ReportesDesempeno[]
+}
+
+model ReportesDesempeno {
+  id_reporte           Int      @id @default(autoincrement())
+  desempeno_operaria   String
+  prendas_producidas   Int
+  hora_revision        DateTime @default(now())
+  id_detalle_desempeno Int
+  id_desempeno         Int?
+
+  detalle   VerDetalleDesempeno @relation(fields: [id_detalle_desempeno], references: [id_detalle])
+  desempeno Desempeno?          @relation(fields: [id_desempeno], references: [id_desempeno])
 }
