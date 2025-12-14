@@ -1,19 +1,19 @@
 const nodemailer = require("nodemailer");
 
 const transporter = nodemailer.createTransport({
-  service: "gmail",
+  service: "resend",
   auth: {
-    user: process.env.MAIL_USER,
-    pass: process.env.MAIL_PASS,
+    user: "resend",
+    pass: process.env.RESEND_API_KEY,
   },
 });
 
-// Solo para debug (no rompe nada en producción)
+// Verificación (muy importante para logs)
 transporter.verify((error) => {
   if (error) {
     console.error("❌ Error en mailer:", error.message);
   } else {
-    console.log("📧 Mailer configurado correctamente");
+    console.log("📧 Mailer configurado correctamente con Resend");
   }
 });
 

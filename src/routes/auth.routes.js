@@ -77,15 +77,15 @@ router.post("/forgot-password", async (req, res) => {
     });
 
     await transporter.sendMail({
-      from: `JIRESOFT <${process.env.MAIL_USER}>`,
-      to: correo,
-      subject: "Recuperación de contraseña",
-      html: `
-        <p>Tu código de recuperación es:</p>
-        <h2 style="letter-spacing:2px">${codigo}</h2>
-        <p>Válido por 15 minutos.</p>
-      `,
-    });
+    from: process.env.MAIL_FROM, // 👈 obligatorio
+    to: correo,
+    subject: "Recuperación de contraseña",
+    html: `
+    <p>Tu código de recuperación es:</p>
+    <h2>${codigo}</h2>
+    <p>Válido por 15 minutos.</p>
+  `,
+});
 
     return res.json({ message: "Si el correo existe, se enviará un código" });
   } catch (e) {
