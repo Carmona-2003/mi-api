@@ -6,7 +6,7 @@ const transporter = require("../utils/mailer");
 
 // (Opcional) middleware para validar token si quieres /me
 const auth = require("../middlewares/auth"); // si no lo tienes, borra /me y este require
-const transporter = require("../config/mailer");
+
 
 
 // =====================
