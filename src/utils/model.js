@@ -19,6 +19,10 @@ const desempeno = {
   desempeno: require("../models/desempeno/desempeno.model"),
   detalleDesempeno: require("../models/desempeno/detalle-desempeno.model"),
   reporteDesempeno: require("../models/desempeno/reporte-desempeno.model"),
+  operaria: require("../models/desempeno/operaria.model"),
+  reporte: require("../models/desempeno/reporte.model"),
+
+
 };
 
 const MODELS = {
