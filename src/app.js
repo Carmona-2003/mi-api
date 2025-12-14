@@ -1,10 +1,15 @@
 const express = require("express");
 const cors = require("cors");
 const routes = require("./routes");
-
-const app = express();
 const apiRoutes = require("./utils/apiRoutes");
 
+const app = express();
+
+// Middlewares primero
+app.use(cors());
+app.use(express.json());
+
+// Home
 app.get("/", (req, res) => {
   res.json({
     ok: true,
@@ -15,12 +20,10 @@ app.get("/", (req, res) => {
   });
 });
 
-
-app.use(cors());
-app.use(express.json());
-
+// Health
 app.get("/health", (_, res) => res.json({ ok: true }));
 
+// API (incluye /auth y tus CRUD)
 app.use("/api", routes);
 
 module.exports = app;
