@@ -1,5 +1,6 @@
 const { Router } = require("express");
-const { crudRouter } = require("./crud.routes");
+const crudRouter = require("./crud.routes");
+
 
 const router = Router();
 
