@@ -2,33 +2,38 @@ const router = require("express").Router();
 const prisma = require("../prisma");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
-const crypto = require("crypto"); // ✅ FALTABA
-const transporter = require("../utils/mailer");
+const crypto = require("crypto");
+
+// ✅ Brevo API (NO SMTP)
+const { sendEmail } = require("../utils/brevo");
 
 // ✅ asegúrate que existe: src/middlewares/auth.middleware.js
 const auth = require("../middlewares/auth.middleware");
 
 // ==========================
-// RUTA DE PRUEBA MAILTRAP
+// GET /api/auth/test-email
+// Prueba envío real con Brevo
 // ==========================
 router.get("/test-email", async (req, res) => {
   try {
-    await transporter.sendMail({
-      from: `Soporte <${process.env.MAIL_FROM}>`, // ✅ mejor formato
-      to: "test@gmail.com",
-      subject: "Prueba Mailtrap",
-      text: "Si ves este correo en Mailtrap, todo funciona",
+    const to = String(req.query.to || "alejo.jj05@gmail.com").trim();
+
+    await sendEmail({
+      to,
+      subject: "Prueba Brevo ✅",
+      html: "<p>Si ves este correo, Brevo API funciona ✅</p>",
+      text: "Si ves este correo, Brevo API funciona ✅",
     });
 
     return res.json({
       ok: true,
-      message: "Correo enviado (Mailtrap Sandbox)",
+      message: `Correo enviado a ${to} (Brevo API)`,
     });
   } catch (error) {
-    console.error("TEST EMAIL ERROR:", error);
+    console.error("TEST EMAIL ERROR:", error.response?.data || error.message);
     return res.status(500).json({
       ok: false,
-      error: error.message,
+      error: "No se pudo enviar el correo",
     });
   }
 });
@@ -88,65 +93,53 @@ router.post("/forgot-password", async (req, res) => {
     const to = String(correo || email || "").trim().toLowerCase();
 
     if (!to) {
-      return res.status(400).json({
-        ok: false,
-        message: "Falta el correo",
-      });
+      return res.status(400).json({ ok: false, message: "Falta el correo" });
     }
 
-    // ✅ Buscar usuario (si no existe, respondemos igual por seguridad)
+    // ✅ Seguridad: si no existe, respondemos igual
     const usuario = await prisma.usuarios.findUnique({ where: { correo: to } });
-
     if (!usuario) {
-      return res.json({
-        ok: true,
-        message: "Si el correo existe, se enviará un código",
-      });
+      return res.json({ ok: true, message: "Si el correo existe, se enviará un enlace" });
     }
 
-    // ✅ generar código/token
+    // ✅ Token y expiración (15 min)
     const token = crypto.randomBytes(32).toString("hex");
+    const expira = new Date(Date.now() + 15 * 60 * 1000);
 
-    // ✅ guardar código + expiración en BD (15 minutos)
     await prisma.usuarios.update({
       where: { correo: to },
       data: {
         reset_codigo: token,
-        reset_expira: new Date(Date.now() + 15 * 60 * 1000),
+        reset_expira: expira,
       },
     });
 
-    // ⚠️ Cambia por tu frontend real (no localhost en producción)
+    // ✅ URL del frontend (pon tu dominio real)
     const resetUrl = `https://TU-FRONTEND.com/reset-password?token=${token}`;
 
-    // ⏱️ timeout manual para evitar 502
-    await Promise.race([
-      transporter.sendMail({
-        from: `Soporte <${process.env.MAIL_FROM}>`,
-        to,
-        subject: "Restablecer contraseña",
-        html: `
-          <p>Haz clic para restablecer tu contraseña:</p>
-          <a href="${resetUrl}">Restablecer contraseña</a>
-          <p>Este enlace expira en 15 minutos.</p>
-        `,
-      }),
-      new Promise((_, reject) =>
-        setTimeout(() => reject(new Error("Email timeout")), 9000)
-      ),
-    ]);
+    // ✅ Enviar por Brevo API
+    await sendEmail({
+      to,
+      subject: "Restablecer contraseña",
+      html: `
+        <p>Haz clic para restablecer tu contraseña:</p>
+        <a href="${resetUrl}">Restablecer contraseña</a>
+        <p>Este enlace expira en 15 minutos.</p>
+      `,
+      text: `Restablece tu contraseña: ${resetUrl}`,
+    });
 
     return res.json({
       ok: true,
-      message: "Si el correo existe, se enviará un código",
+      message: "Si el correo existe, se enviará un enlace",
     });
   } catch (error) {
-    console.error("FORGOT PASSWORD ERROR:", error);
+    console.error("FORGOT PASSWORD ERROR:", error.response?.data || error.message);
 
-    // Por seguridad no revelamos detalles y evitamos 502
+    // ✅ No revelamos detalles
     return res.status(200).json({
       ok: true,
-      message: "Si el correo existe, se enviará un código",
+      message: "Si el correo existe, se enviará un enlace",
     });
   }
 });
@@ -164,7 +157,9 @@ router.post("/reset-password", async (req, res) => {
     nuevaContrasena = String(nuevaContrasena || "");
 
     if (!correo || !codigo || !nuevaContrasena) {
-      return res.status(400).json({ error: "correo, codigo y nuevaContrasena son requeridos" });
+      return res.status(400).json({
+        error: "correo, codigo y nuevaContrasena son requeridos",
+      });
     }
 
     if (nuevaContrasena.length < 6) {
@@ -177,7 +172,7 @@ router.post("/reset-password", async (req, res) => {
       !usuario ||
       usuario.reset_codigo !== codigo ||
       !usuario.reset_expira ||
-      usuario.reset_expira < new Date()
+      new Date(usuario.reset_expira) < new Date()
     ) {
       return res.status(400).json({ error: "Código inválido o expirado" });
     }
