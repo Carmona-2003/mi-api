@@ -7,6 +7,31 @@ const transporter = require("../utils/mailer");
 // ✅ asegúrate que existe: src/middlewares/auth.middleware.js
 const auth = require("../middlewares/auth.middleware");
 
+
+// ==========================
+// RUTA DE PRUEBA MAILTRAP
+// ==========================
+router.get("/test-email", async (req, res) => {
+  try {
+    await transporter.sendMail({
+      from: process.env.MAIL_FROM,
+      to: "test@gmail.com",
+      subject: "Prueba Mailtrap",
+      text: "Si ves este correo en Mailtrap, todo funciona",
+    });
+
+    res.json({
+      ok: true,
+      message: "Correo enviado (Mailtrap Sandbox)",
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({
+      ok: false,
+      error: error.message,
+    });
+  }
+});
 // =====================
 // POST /api/auth/login
 // =====================

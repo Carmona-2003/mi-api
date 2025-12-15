@@ -1,7 +1,12 @@
+require("dotenv").config();
+
 const express = require("express");
 const cors = require("cors");
 const routes = require("./routes");
 const apiRoutes = require("./utils/apiRoutes");
+
+console.log("MAIL_HOST:", process.env.MAIL_HOST); // 👈 SOLO PARA PROBAR
+
 
 const app = express();
 
