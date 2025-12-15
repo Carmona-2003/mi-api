@@ -2,17 +2,15 @@ const router = require("express").Router();
 const prisma = require("../prisma");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
-const crypto = require("crypto");
 
 // ✅ Brevo API (NO SMTP)
 const { sendEmail } = require("../utils/brevo");
 
-// ✅ asegúrate que existe: src/middlewares/auth.middleware.js
+// ✅ Middleware auth
 const auth = require("../middlewares/auth.middleware");
 
 // ==========================
 // GET /api/auth/test-email
-// Prueba envío real con Brevo
 // ==========================
 router.get("/test-email", async (req, res) => {
   try {
@@ -27,7 +25,7 @@ router.get("/test-email", async (req, res) => {
 
     return res.json({
       ok: true,
-      message: `Correo enviado a ${to} (Brevo API)`,
+      message: `Correo enviado a ${to}`,
     });
   } catch (error) {
     console.error("TEST EMAIL ERROR:", error.response?.data || error.message);
@@ -93,53 +91,56 @@ router.post("/forgot-password", async (req, res) => {
     const to = String(correo || email || "").trim().toLowerCase();
 
     if (!to) {
-      return res.status(400).json({ ok: false, message: "Falta el correo" });
+      return res.status(400).json({
+        ok: false,
+        message: "Falta el correo",
+      });
     }
 
-    // ✅ Seguridad: si no existe, respondemos igual
-    const usuario = await prisma.usuarios.findUnique({ where: { correo: to } });
+    const usuario = await prisma.usuarios.findUnique({
+      where: { correo: to },
+    });
+
+    // 🔐 Seguridad: no revelar si existe
     if (!usuario) {
-      return res.json({ ok: true, message: "Si el correo existe, se enviará un enlace" });
+      return res.json({
+        ok: true,
+        message: "Si el correo existe, se enviará un código",
+      });
     }
 
-    // ✅ Token y expiración (15 min)
-    const token = crypto.randomBytes(32).toString("hex");
-    const expira = new Date(Date.now() + 15 * 60 * 1000);
+    // 🔢 Código OTP (6 dígitos)
+    const codigo = Math.floor(100000 + Math.random() * 900000).toString();
+    const expira = new Date(Date.now() + 15 * 60 * 1000); // 15 minutos
 
     await prisma.usuarios.update({
       where: { correo: to },
       data: {
-        reset_codigo: token,
+        reset_codigo: codigo,
         reset_expira: expira,
       },
     });
 
-    // ✅ URL del frontend (pon tu dominio real)
-    const resetUrl = `https://TU-FRONTEND.com/reset-password?token=${token}`;
-
-    // ✅ Enviar por Brevo API
     await sendEmail({
       to,
-      subject: "Restablecer contraseña",
+      subject: "Código para restablecer tu contraseña",
       html: `
-        <p>Haz clic para restablecer tu contraseña:</p>
-        <a href="${resetUrl}">Restablecer contraseña</a>
-        <p>Este enlace expira en 15 minutos.</p>
+        <p>Tu código para restablecer la contraseña es:</p>
+        <h2 style="letter-spacing:2px;">${codigo}</h2>
+        <p>Este código expira en 15 minutos.</p>
       `,
-      text: `Restablece tu contraseña: ${resetUrl}`,
+      text: `Tu código es: ${codigo}. Expira en 15 minutos.`,
     });
 
     return res.json({
       ok: true,
-      message: "Si el correo existe, se enviará un enlace",
+      message: "Si el correo existe, se enviará un código",
     });
   } catch (error) {
     console.error("FORGOT PASSWORD ERROR:", error.response?.data || error.message);
-
-    // ✅ No revelamos detalles
     return res.status(200).json({
       ok: true,
-      message: "Si el correo existe, se enviará un enlace",
+      message: "Si el correo existe, se enviará un código",
     });
   }
 });
@@ -163,10 +164,14 @@ router.post("/reset-password", async (req, res) => {
     }
 
     if (nuevaContrasena.length < 6) {
-      return res.status(400).json({ error: "La contraseña debe tener mínimo 6 caracteres" });
+      return res.status(400).json({
+        error: "La contraseña debe tener mínimo 6 caracteres",
+      });
     }
 
-    const usuario = await prisma.usuarios.findUnique({ where: { correo } });
+    const usuario = await prisma.usuarios.findUnique({
+      where: { correo },
+    });
 
     if (
       !usuario ||
@@ -174,7 +179,9 @@ router.post("/reset-password", async (req, res) => {
       !usuario.reset_expira ||
       new Date(usuario.reset_expira) < new Date()
     ) {
-      return res.status(400).json({ error: "Código inválido o expirado" });
+      return res.status(400).json({
+        error: "Código inválido o expirado",
+      });
     }
 
     const hash = await bcrypt.hash(nuevaContrasena, 10);
@@ -188,7 +195,9 @@ router.post("/reset-password", async (req, res) => {
       },
     });
 
-    return res.json({ message: "Contraseña actualizada correctamente" });
+    return res.json({
+      message: "Contraseña actualizada correctamente",
+    });
   } catch (e) {
     console.error("RESET ERROR:", e);
     return res.status(500).json({ error: "Error interno" });
@@ -196,7 +205,7 @@ router.post("/reset-password", async (req, res) => {
 });
 
 // =====================
-// GET /api/auth/me (opcional)
+// GET /api/auth/me
 // =====================
 router.get("/me", auth, async (req, res) => {
   try {
@@ -204,10 +213,18 @@ router.get("/me", auth, async (req, res) => {
 
     const usuario = await prisma.usuarios.findUnique({
       where: { id_usuario: userId },
-      select: { id_usuario: true, nombre: true, correo: true, id_rol: true, estado: true },
+      select: {
+        id_usuario: true,
+        nombre: true,
+        correo: true,
+        id_rol: true,
+        estado: true,
+      },
     });
 
-    if (!usuario) return res.status(404).json({ error: "Usuario no encontrado" });
+    if (!usuario) {
+      return res.status(404).json({ error: "Usuario no encontrado" });
+    }
 
     return res.json(usuario);
   } catch (e) {
